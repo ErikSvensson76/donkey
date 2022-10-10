@@ -12,7 +12,7 @@ public interface FileStorageService {
 
     FileInfo save(MultipartFile multipartFile);
 
-    List<FileInfo> saveAll(List<MultipartFile> multipartFiles);
+    List<FileInfo> saveAll(List<MultipartFile> multipartFiles, String directory);
 
     void delete(String fileName);
 
