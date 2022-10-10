@@ -12,7 +12,6 @@ import org.springframework.web.servlet.mvc.method.annotation.MvcUriComponentsBui
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -54,8 +53,8 @@ public class MultipartFileStorageServiceImpl implements FileStorageService{
             if(resource.exists() || resource.isReadable()){
                 return resource;
             }
-            throw new RuntimeException("Could not read the file");
-        }catch (MalformedURLException ex){
+            throw new RuntimeException("Could not find file: " + file);
+        }catch (Exception ex){
             throw new RuntimeException("Exception: " + ex.getMessage(), ex);
         }
     }
