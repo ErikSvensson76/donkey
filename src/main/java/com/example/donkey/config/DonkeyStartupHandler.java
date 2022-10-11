@@ -1,11 +1,11 @@
 package com.example.donkey.config;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
@@ -14,9 +14,10 @@ import java.nio.file.attribute.BasicFileAttributes;
 @Component
 @Slf4j
 public class DonkeyStartupHandler {
-
     @Value("${document.upload-directory}")
     private String uploadDirectory;
+    @Value("${spring.profiles.active}")
+    private String profile;
 
     public static class CopyDirectoryVisitor extends SimpleFileVisitor<Path> {
         private final Path fromPath;
@@ -51,16 +52,34 @@ public class DonkeyStartupHandler {
 
     @PostConstruct
     void postConstruct() {
-        File src = Path.of("indata").toFile();
+        if(profile.equals("test")) return;
+
+        File src = Path.of("data").toFile();
         File dest = Path.of(uploadDirectory).toFile();
 
         Path srcPath = src.toPath();
         Path destPath = dest.toPath();
         try{
             Files.walkFileTree(srcPath, new CopyDirectoryVisitor(srcPath, destPath, StandardCopyOption.REPLACE_EXISTING));
-            FileUtils.cleanDirectory(src);
         }catch (IOException ex){
             throw new RuntimeException("Failed to copy data from " + src + " to " + uploadDirectory);
         }
+    }
+
+    @PreDestroy
+    void preDestroy(){
+        if(profile.equals("test")) return;
+        File src = Path.of(uploadDirectory).toFile();
+        File dest = Path.of("data").toFile();
+
+        Path srcPath = src.toPath();
+        Path destPath = dest.toPath();
+
+        try{
+            Files.walkFileTree(srcPath, new CopyDirectoryVisitor(srcPath, destPath, StandardCopyOption.REPLACE_EXISTING));
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to copy data from " + src + " to " + dest);
+        }
+
     }
 }
