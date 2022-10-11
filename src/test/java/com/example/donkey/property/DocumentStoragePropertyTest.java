@@ -16,4 +16,10 @@ class DocumentStoragePropertyTest {
         assertNotNull(documentStorageProperty.uploadDirectory());
         assertEquals("test", documentStorageProperty.uploadDirectory());
     }
+
+    @Test
+    void getDataDirectory() {
+        assertNotNull(documentStorageProperty.dataDirectory());
+        assertEquals("data", documentStorageProperty.dataDirectory());
+    }
 }
