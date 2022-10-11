@@ -13,9 +13,11 @@ import java.nio.file.attribute.BasicFileAttributes;
 
 @Component
 @Slf4j
-public class DonkeyStartupHandler {
+public class DonkeyLifecycleHandler {
     @Value("${document.upload-directory}")
     private String uploadDirectory;
+    @Value("${document.data-directory}")
+    private String dataDirectory;
     @Value("${spring.profiles.active}")
     private String profile;
 
@@ -54,7 +56,7 @@ public class DonkeyStartupHandler {
     void postConstruct() {
         if(profile.equals("test")) return;
 
-        File src = Path.of("data").toFile();
+        File src = Path.of(dataDirectory).toFile();
         File dest = Path.of(uploadDirectory).toFile();
 
         Path srcPath = src.toPath();
@@ -69,8 +71,9 @@ public class DonkeyStartupHandler {
     @PreDestroy
     void preDestroy(){
         if(profile.equals("test")) return;
+
         File src = Path.of(uploadDirectory).toFile();
-        File dest = Path.of("data").toFile();
+        File dest = Path.of(dataDirectory).toFile();
 
         Path srcPath = src.toPath();
         Path destPath = dest.toPath();
@@ -80,6 +83,6 @@ public class DonkeyStartupHandler {
         } catch (IOException e) {
             throw new RuntimeException("Failed to copy data from " + src + " to " + dest);
         }
-
     }
+
 }
