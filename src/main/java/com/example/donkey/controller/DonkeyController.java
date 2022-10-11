@@ -35,6 +35,11 @@ public class DonkeyController {
         return ResponseEntity.ok(fileStorageService.saveAll(multiPartFiles, directory));
     }
 
+    @GetMapping("/info")
+    public ResponseEntity<List<FileInfo>> findAll(){
+       return ResponseEntity.ok(fileStorageService.findAll());
+    }
+
     @GetMapping("/files/{filename:.+}")
     @ResponseBody
     public ResponseEntity<Resource> getFile(
