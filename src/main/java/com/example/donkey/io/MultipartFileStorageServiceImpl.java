@@ -67,25 +67,46 @@ public class MultipartFileStorageServiceImpl implements FileStorageService{
     @Override
     public FileInfo save(MultipartFile multipartFile){
         try{
-            Path path = Path.of(documentStorageProperty.uploadDirectory()).resolve(Objects.requireNonNull(multipartFile.getOriginalFilename()));
+            String fileName = Objects.requireNonNull(multipartFile.getOriginalFilename()).replaceAll(" ", "-");
+            Path path = Path.of(documentStorageProperty.uploadDirectory()).resolve(fileName);
             Files.copy(
                     multipartFile.getInputStream(),
                     path,
                     StandardCopyOption.REPLACE_EXISTING
             );
-            log.info("Successfully stored file: {} in directory: {}", multipartFile.getOriginalFilename(), documentStorageProperty.uploadDirectory());
+            log.info("Successfully stored file: {} in directory: {}", fileName, documentStorageProperty.uploadDirectory());
             return new FileInfo(
-                    multipartFile.getOriginalFilename(),
-                    MvcUriComponentsBuilder.fromMethodName(DonkeyController.class, "getFile", path.getFileName().toString()).port(8010).build().toString()
+                    fileName,
+                    buildUrl(path)
             );
         }catch (Exception e){
             throw new RuntimeException("Could not store the file. Error: " + e.getMessage(), e);
         }
     }
 
+    @Override
+    public List<FileInfo> findAll() {
+        try(Stream<Path> walk = Files.walk(Path.of(documentStorageProperty.uploadDirectory()))){
+            return walk.sorted(Comparator.reverseOrder())
+                    .map(Path::toFile)
+                    .filter(File::isFile)
+                    .map(file -> {
+                        log.info(file.getPath());
+                        return new FileInfo(
+                                file.getName(),
+                                buildUrl(Path.of(file.getPath()))
+                        );
+                    }).toList();
+
+        }catch (IOException ex){
+            throw new RuntimeException("Failed to fetch file information", ex);
+        }
+    }
+
 
     public FileInfo save(MultipartFile multipartFile, Path subdirectory) {
         try{
+            String filename = Objects.requireNonNull(multipartFile.getOriginalFilename()).replaceAll(" ", "-");
             Path directoryPath = Path.of(documentStorageProperty.uploadDirectory()).resolve(subdirectory);
             if(!directoryPath.toFile().exists()){
                 Files.createDirectories(directoryPath);
@@ -93,26 +114,38 @@ public class MultipartFileStorageServiceImpl implements FileStorageService{
 
             Path path = Path.of(documentStorageProperty.uploadDirectory())
                     .resolve(subdirectory)
-                    .resolve(Objects.requireNonNull(multipartFile.getOriginalFilename()));
-
-            log.info(path.toString());
-
+                    .resolve(filename);
 
             Files.copy(
                     multipartFile.getInputStream(),
                     path,
                     StandardCopyOption.REPLACE_EXISTING
             );
-            log.info("Successfully stored file: {} in directory: {}", multipartFile.getOriginalFilename(), directoryPath);
+            log.info("Successfully stored file: {} in directory: {}", filename, directoryPath);
 
             return new FileInfo(
-                    multipartFile.getOriginalFilename(),
-                    MvcUriComponentsBuilder
-                            .fromMethodName(DonkeyController.class, "getFile", subdirectory+"/"+multipartFile.getOriginalFilename()).port(8010).build().toString());
+                    filename,
+                    buildUrl(path)
+            );
 
         } catch (Exception e) {
             throw new RuntimeException("Could not store the file. Error: " + e.getMessage(), e);
         }
+    }
+
+    public String buildUrl(final Path fullPath){
+        if(fullPath == null) throw new RuntimeException("Path was null");
+
+        var pruned = fullPath.subpath(Path.of(documentStorageProperty.uploadDirectory()).getNameCount(), fullPath.getNameCount());
+        String[] split = pruned.toString().replace('\\', '/').split("/");
+        StringBuilder stringBuilder = new StringBuilder();
+        for(int i=0; i<split.length;i++){
+            stringBuilder.append(split[i]);
+            if(i < split.length -1){
+                stringBuilder.append("/");
+            }
+        }
+        return MvcUriComponentsBuilder.fromMethodName(DonkeyController.class, "getFile", stringBuilder.toString()).port(8010).build().toString();
     }
 
     /**
@@ -131,7 +164,6 @@ public class MultipartFileStorageServiceImpl implements FileStorageService{
             fileInfos = multipartFiles.stream()
                     .map(multipartFile -> save(multipartFile, Path.of(directory)))
                     .collect(Collectors.toList());
-
         }
         return fileInfos;
     }

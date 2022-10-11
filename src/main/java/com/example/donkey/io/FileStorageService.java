@@ -12,6 +12,8 @@ public interface FileStorageService {
 
     FileInfo save(MultipartFile multipartFile);
 
+    List<FileInfo> findAll();
+
     List<FileInfo> saveAll(List<MultipartFile> multipartFiles, String directory);
 
     void delete(String fileName);
