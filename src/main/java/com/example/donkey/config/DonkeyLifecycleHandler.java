@@ -1,6 +1,7 @@
 package com.example.donkey.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -62,7 +63,14 @@ public class DonkeyLifecycleHandler {
         Path srcPath = src.toPath();
         Path destPath = dest.toPath();
         try{
+            if(!Files.exists(srcPath)){
+                Files.createDirectory(srcPath);
+            }
+            if(!Files.exists(destPath)){
+                Files.createDirectory(destPath);
+            }
             Files.walkFileTree(srcPath, new CopyDirectoryVisitor(srcPath, destPath, StandardCopyOption.REPLACE_EXISTING));
+            FileUtils.cleanDirectory(Paths.get(dataDirectory).toFile());
         }catch (IOException ex){
             throw new RuntimeException("Failed to copy data from " + src + " to " + uploadDirectory);
         }
