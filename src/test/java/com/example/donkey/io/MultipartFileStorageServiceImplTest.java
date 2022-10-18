@@ -7,6 +7,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.Resource;
@@ -51,6 +53,34 @@ class MultipartFileStorageServiceImplTest {
                 file.delete();
             }
         }
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+            value = {
+                    "..;false",
+                    "test.md;true",
+                    "/test.md;false",
+                    "/../foo.md;false",
+                    "/../foo.md;false",
+                    "/src/main/resources/css;false",
+                    ";false",
+                    "classpath:;false",
+                    "test;false",
+                    "C:\\test\\test.md;false",
+                    "' ';false",
+                    "'';false",
+                    "test/test.md;true",
+                    "test/test/test/test.md;true",
+                    "test/test/test/;true",
+                    "test/test/test/test;false",
+                    "test/test/test/test/test.md;false",
+                    "test/test/test/test/test;false"
+            }
+            ,delimiter = ';'
+    )
+    void isValidSourceOrDestination(String input, Boolean expected){
+        assertEquals(expected, testObject.isValidSourceOrDestination(input));
     }
 
     @Test
