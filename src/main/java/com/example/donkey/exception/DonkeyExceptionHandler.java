@@ -69,4 +69,43 @@ public class DonkeyExceptionHandler {
                 );
     }
 
+    @ExceptionHandler(FileResourceNotFoundException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ResponseEntity<ExceptionResponse> onFileResourceNotFoundException(
+            FileResourceNotFoundException fileResourceNotFoundException,
+            WebRequest request
+    ){
+        return ResponseEntity.badRequest()
+                .body(
+                        new ExceptionResponse(
+                                LocalDateTime.now(),
+                                HttpStatus.BAD_REQUEST.value(),
+                                HttpStatus.BAD_REQUEST.name(),
+                                fileResourceNotFoundException.getMessage(),
+                                request.getDescription(false),
+                                null
+                        )
+                );
+    }
+
+    @ExceptionHandler(FileStorageException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ResponseEntity<ExceptionResponse> onFileStorageException(
+            FileStorageException fileStorageException,
+            WebRequest request
+    ){
+        return ResponseEntity.badRequest()
+                .body(
+                        new ExceptionResponse(
+                                LocalDateTime.now(),
+                                HttpStatus.BAD_REQUEST.value(),
+                                HttpStatus.BAD_REQUEST.name(),
+                                fileStorageException.getMessage(),
+                                request.getDescription(false),
+                                null
+                        )
+                );
+    }
+
+
 }
