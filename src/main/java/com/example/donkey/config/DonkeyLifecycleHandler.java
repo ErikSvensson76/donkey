@@ -1,5 +1,6 @@
 package com.example.donkey.config;
 
+import com.example.donkey.io.util.CopyVisitor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,8 +10,10 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 @Component
 @Slf4j
@@ -21,36 +24,6 @@ public class DonkeyLifecycleHandler {
     private String dataDirectory;
     @Value("${spring.profiles.active}")
     private String profile;
-
-    public static class CopyDirectoryVisitor extends SimpleFileVisitor<Path> {
-        private final Path fromPath;
-        private final Path toPath;
-        private final CopyOption copyOption;
-
-        public CopyDirectoryVisitor(Path fromPath, Path toPath, CopyOption copyOption) {
-            this.fromPath = fromPath;
-            this.toPath = toPath;
-            this.copyOption = copyOption;
-        }
-
-        @Override
-        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-            Path targetPath = toPath.resolve(fromPath.relativize(dir));
-            if(!Files.exists(targetPath)){
-                Files.createDirectory(targetPath);
-                log.info("Created directory: {}", targetPath);
-            }
-            return FileVisitResult.CONTINUE;
-        }
-
-        @Override
-        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-            Path destination = toPath.resolve(fromPath.relativize(file));
-            Files.copy(file, destination, copyOption);
-            log.info("Copied file: {} to destination: {}", file, destination);
-            return FileVisitResult.CONTINUE;
-        }
-    }
 
 
     @PostConstruct
@@ -69,7 +42,7 @@ public class DonkeyLifecycleHandler {
             if(!Files.exists(destPath)){
                 Files.createDirectory(destPath);
             }
-            Files.walkFileTree(srcPath, new CopyDirectoryVisitor(srcPath, destPath, StandardCopyOption.REPLACE_EXISTING));
+            Files.walkFileTree(srcPath, new CopyVisitor(srcPath, destPath, StandardCopyOption.REPLACE_EXISTING));
             FileUtils.cleanDirectory(Paths.get(dataDirectory).toFile());
         }catch (IOException ex){
             throw new RuntimeException("Failed to copy data from " + src + " to " + uploadDirectory);
@@ -87,7 +60,7 @@ public class DonkeyLifecycleHandler {
         Path destPath = dest.toPath();
 
         try{
-            Files.walkFileTree(srcPath, new CopyDirectoryVisitor(srcPath, destPath, StandardCopyOption.REPLACE_EXISTING));
+            Files.walkFileTree(srcPath, new CopyVisitor(srcPath, destPath, StandardCopyOption.REPLACE_EXISTING));
         } catch (IOException e) {
             throw new RuntimeException("Failed to copy data from " + src + " to " + dest);
         }
