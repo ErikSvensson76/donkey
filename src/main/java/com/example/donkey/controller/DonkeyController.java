@@ -4,6 +4,7 @@ import com.example.donkey.io.FileStorageService;
 import com.example.donkey.model.FileInfo;
 import com.example.donkey.model.ResponseMessage;
 import com.example.donkey.validation.NoMaliciousCharacters;
+import com.example.donkey.validation.ValidSourceAndDestinationMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -16,6 +17,7 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Map;
 
 import static com.example.donkey.property.ValidationMessages.*;
 
@@ -77,6 +79,14 @@ public class DonkeyController {
         String path = directory+"/"+filename;
         fileStorageService.delete(path);
         return ResponseEntity.accepted().body(new ResponseMessage(path + " was deleted"));
+    }
+
+    @PostMapping("/files/move")
+    public ResponseEntity<List<FileInfo>> moveFiles(
+            @RequestBody @ValidSourceAndDestinationMap(message = "Invalid map") Map<String, String> sourceAndDestMap
+    ){
+
+        return ResponseEntity.ok(fileStorageService.moveFiles(sourceAndDestMap));
     }
 
 
