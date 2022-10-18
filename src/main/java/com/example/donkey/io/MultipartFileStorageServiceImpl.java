@@ -1,6 +1,9 @@
 package com.example.donkey.io;
 
 import com.example.donkey.controller.DonkeyController;
+import com.example.donkey.exception.FileResourceNotFoundException;
+import com.example.donkey.exception.FileStorageException;
+import com.example.donkey.io.util.CopyVisitor;
 import com.example.donkey.model.FileInfo;
 import com.example.donkey.property.DocumentStorageProperty;
 import lombok.extern.slf4j.Slf4j;
@@ -16,9 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -27,6 +28,7 @@ import java.util.stream.Stream;
 public class MultipartFileStorageServiceImpl implements FileStorageService{
 
     private final DocumentStorageProperty documentStorageProperty;
+    private String hasFileRegex = ".+\\.([^.]+)$";
 
     public MultipartFileStorageServiceImpl(DocumentStorageProperty documentStorageProperty) {
         this.documentStorageProperty = documentStorageProperty;
@@ -80,8 +82,63 @@ public class MultipartFileStorageServiceImpl implements FileStorageService{
                     buildUrl(path)
             );
         }catch (Exception e){
-            throw new RuntimeException("Could not store the file. Error: " + e.getMessage(), e);
+            throw new FileStorageException(e.getMessage(), e);
         }
+    }
+
+    public boolean isValidSourceOrDestination(String path){
+        if(path == null || path.isBlank()) return false;
+        if(path.startsWith("/")) return false;
+        if(path.contains("/src/main/resources") || path.contains("classpath")) return false;
+        if(path.equals(documentStorageProperty.uploadDirectory())) return false;
+        Path asPath = Path.of(path);
+        boolean isFile = path.matches(hasFileRegex);
+        if(
+                asPath.isAbsolute()
+                || (isFile && asPath.getNameCount() -1  > 3)
+                || (!isFile && asPath.getNameCount() > 3)
+        ) return false;
+        return !path.contains("..");
+    }
+
+    @Override
+    public List<FileInfo> moveFiles(Map<String,String> srcAndDestinationMap) {
+        List<FileInfo> fileInfos = new ArrayList<>();
+        for(Map.Entry<String, String> pair : srcAndDestinationMap.entrySet()){
+
+            String src = pair.getKey();
+            String dest = pair.getValue();
+
+            Path sourcePath = Paths.get(documentStorageProperty.uploadDirectory()).resolve(src);
+            Path targetPath = Paths.get(documentStorageProperty.uploadDirectory()).resolve(dest);
+
+            if(!sourcePath.toFile().exists()){
+                throw new FileResourceNotFoundException("Could not find source: " + sourcePath);
+            }
+
+            try{
+                synchronized (this){
+                    if(!targetPath.getParent().toFile().exists()){
+                        Files.createDirectories(targetPath.getParent());
+                    }
+
+                    Files.walkFileTree(sourcePath, new CopyVisitor(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING));
+                    Files.delete(sourcePath);
+                    log.info("{} was removed", sourcePath);
+                }
+            }catch (Exception ex){
+                log.error(ex.getMessage());
+                throw new FileStorageException(ex.getMessage(), ex);
+            }
+
+            fileInfos.add(
+                    new FileInfo(
+                            targetPath.toFile().getName(),
+                            buildUrl(targetPath)
+                    )
+            );
+        }
+        return fileInfos;
     }
 
     @Override
@@ -106,6 +163,9 @@ public class MultipartFileStorageServiceImpl implements FileStorageService{
 
     public FileInfo save(MultipartFile multipartFile, Path subdirectory) {
         try{
+            if(!isValidSourceOrDestination(subdirectory.toString())){
+                throw new RuntimeException("Path: " + subdirectory + " was invalid.");
+            }
             String filename = Objects.requireNonNull(multipartFile.getOriginalFilename()).replaceAll(" ", "-");
             Path directoryPath = Path.of(documentStorageProperty.uploadDirectory()).resolve(subdirectory);
             if(!directoryPath.toFile().exists()){
@@ -129,7 +189,7 @@ public class MultipartFileStorageServiceImpl implements FileStorageService{
             );
 
         } catch (Exception e) {
-            throw new RuntimeException("Could not store the file. Error: " + e.getMessage(), e);
+            throw new FileStorageException("Could not store the file. Error: " + e.getMessage(), e);
         }
     }
 
